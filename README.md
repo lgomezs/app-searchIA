@@ -1,293 +1,611 @@
-# Quarkus Hexagonal Architecture
+# Implementación de un RAG corporativo con Quarkus, Azure AI Search y Azure OpenAI
 
-> Production-ready reference project demonstrating **Hexagonal Architecture (Ports & Adapters)**, **DDD**, and **Quarkus 3**.
+## 1. Objetivo
 
-## Table of Contents
+Construir la base de un portal de asistencia técnica para desarrolladores de la empresa. El programador podrá preguntar sobre el framework técnico corporativo, estándares de arquitectura, buenas prácticas, convenciones y documentación técnica.
 
-1. Overview
-2. Goals
-3. Architecture
-4. Project Structure
-5. Domain Model
-6. Database Model
-7. API
-8. Technologies
-9. Running the Project
-10. Configuration
-11. Testing
-12. Roadmap
-13. Antora Documentation
-
----
-
-# 1. Overview
-
-This project is a reference implementation of a clean enterprise architecture using Quarkus.
-
-It demonstrates:
-
-- Hexagonal Architecture
-- Domain Driven Design
-- Repository Pattern
-- Use Cases
-- Value Objects
-- MapStruct
-- Hibernate ORM
-
-# 2. Goals
-
-- Separate business rules from infrastructure.
-- Keep the domain independent of frameworks.
-- Make adapters replaceable.
-- Simplify testing.
-- Serve as a template for enterprise applications.
-
-# 3. Architecture
+La solución utiliza RAG (Retrieval-Augmented Generation).
 
 ```text
-                Client
-                   │
-                   ▼
-          REST Controller
-                   │
-                   ▼
-            Application Layer
-          (Use Cases / Services)
-                   │
-          Inbound / Outbound Ports
-                   │
-                   ▼
-               Domain
-        (Business Rules)
-                   │
-          Repository Port
-                   │
-                   ▼
-          Persistence Adapter
-             (Hibernate/JPA)
-                   │
-                   ▼
-              PostgreSQL
+Pregunta del desarrollador
+        |
+        v
+      Quarkus
+        |
+        v
+ Azure AI Search
+        |
+        v
+    Contexto técnico
+        |
+        v
+ Azure OpenAI / GPT-5-mini
+        |
+        v
+ Respuesta basada en documentación
 ```
 
-## Layers
+La IA no se entrena nuevamente con cada documento. La documentación se indexa y, ante cada pregunta, se recuperan los fragmentos relevantes y se entregan al modelo como contexto.
 
-| Layer | Responsibility |
-|-------|----------------|
-| Domain | Business rules |
-| Application | Use cases |
-| Infrastructure | REST, DB, Kafka |
-| Bootstrap | Quarkus startup |
+## 2. Recursos utilizados
 
-# 4. Project Structure
+### Azure Blob Storage
+
+Se utiliza como almacenamiento de los documentos originales. Se cargó `arquitectura-hexagonal.adoc`, que contiene una guía técnica para construir arquitectura hexagonal.
+
+Blob Storage es el repositorio de documentos; no genera respuestas.
+
+### Azure AI Search
+
+Se utiliza para indexar y recuperar información. No es Azure OpenAI y no genera la respuesta final. Su función es encontrar los fragmentos de documentación más relevantes para una pregunta.
+
+### Azure OpenAI
+
+Genera la respuesta final utilizando la pregunta y el contexto recuperado. Deployment: `gpt-5-mini-1`.
+
+### Quarkus
+
+Es el microservicio que coordina todo: recibe la pregunta, consulta Search, recupera chunks, construye el contexto, llama a Azure OpenAI y devuelve la respuesta.
+
+## 3. Documento AsciiDoc creado
+
+Se creó `arquitectura-hexagonal.adoc` con contenido sobre principios de arquitectura hexagonal, separación dominio/infraestructura, organización de paquetes, Input Ports, Output Ports, Input Adapters, Output Adapters, responsabilidades y ejemplos. El archivo se cargó en Azure Blob Storage.
+
+## 4. Azure AI Search e indexación
+
+El flujo es:
 
 ```text
-src
-├── main
-│   ├── java
-│   │   ├── application
-│   │   ├── domain
-│   │   ├── infrastructure
-│   │   └── bootstrap
-│   └── resources
+arquitectura-hexagonal.adoc
+          |
+          v
+      Blob Storage
+          |
+          v
+      Indexación
+          |
+          v
+       chunks
+          |
+          v
+     vectorización
+          |
+          v
+      text_vector
+          |
+          v
+    Azure AI Search
 ```
 
-# 5. Domain Model
+El documento se divide en fragmentos o chunks. Cada chunk puede tener identificador, documento padre, texto, título y vector.
 
-## Order
+## 5. Índice utilizado
 
-| Field | Description |
-|-------|-------------|
-| id | Identifier |
-| code | Business code |
-| description | Description |
-| items | Order lines |
-
-## Item
-
-| Field | Description |
-|-------|-------------|
-| model | Model |
-| quality | Quality |
-| quantity | Quantity |
-
-# 6. Database Model
-
-## orders
-
-| Column | Type |
-|---------|------|
-| id | INTEGER |
-| code | VARCHAR |
-| description | VARCHAR |
-
-## order_lines
-
-| Column | Type |
-|---------|------|
-| id | INTEGER |
-| model | INTEGER |
-| quality | INTEGER |
-| quantity | INTEGER |
-| order_id | INTEGER FK |
-
-Relationship
+Campos configurados:
 
 ```text
-orders
-   1
-   │
-   │
-   *
-order_lines
+chunk_id       String
+parent_id      String
+chunk          String
+title          String
+text_vector    Collection(Edm.Single)
 ```
 
-# 7. REST API
+`chunk_id` identifica el fragmento. `parent_id` relaciona el fragmento con su documento padre. `chunk` contiene el texto que luego se usa como contexto. `title` contiene el título. `text_vector` contiene la representación vectorial del contenido y permite búsqueda vectorial.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /orders | List orders |
-| GET | /orders/{id} | Get order |
-| POST | /orders | Create order |
-| PUT | /orders/{id} | Update order |
-| DELETE | /orders/{id} | Delete order |
+## 6. Vectorización y búsqueda semántica
 
-## Example Request
+Un texto puede convertirse en un embedding o vector. La pregunta también puede vectorizarse y compararse con los vectores almacenados en `text_vector`. Esto permite encontrar contenido relacionado semánticamente aunque las palabras exactas no coincidan.
 
-```json
-{
-  "code":"ORD-001",
-  "description":"Sample Order",
-  "items":[
-    {
-      "model":10,
-      "quality":1,
-      "quantity":100
+La implementación utiliza búsqueda híbrida: búsqueda textual y búsqueda vectorial.
+
+```java
+.setSearchText(question)
+```
+
+y:
+
+```java
+VectorizableTextQuery vectorQuery =
+        new VectorizableTextQuery(question)
+                .setKNearestNeighbors(5)
+                .setFields("text_vector");
+```
+
+Conceptualmente:
+
+```text
+Pregunta
+   |
+   +--> búsqueda textual
+   |
+   +--> búsqueda vectorial
+           |
+           v
+    Azure AI Search
+           |
+           v
+    resultados relevantes
+```
+
+## 7. Dependencia Maven
+
+Se utilizó `azure-search-documents` versión `12.0.0`:
+
+```xml
+<dependency>
+    <groupId>com.azure</groupId>
+    <artifactId>azure-search-documents</artifactId>
+    <version>12.0.0</version>
+</dependency>
+```
+
+Se validó la API de esta versión. La implementación utiliza `SearchClient`, `SearchOptions`, `SearchResult`, `VectorizableTextQuery` y `SearchPagedIterable`. No se utiliza `VectorSearchOptions` ni `SearchDocument` en la implementación final.
+
+## 8. Configuración de Azure AI Search
+
+En `application.properties`:
+
+```properties
+azure.search.endpoint=https://TU-SEARCH-SERVICE.search.windows.net
+azure.search.index-name=TU_INDICE
+azure.search.api-key=${AZURE_SEARCH_API_KEY}
+```
+
+La API key debe pertenecer al mismo recurso de Azure AI Search que contiene el índice. No debe confundirse con la clave de Azure OpenAI, Storage u otros recursos. Las claves reales deben mantenerse fuera de Git.
+
+## 9. Creación del SearchClient
+
+Se creó un productor CDI:
+
+```java
+@ApplicationScoped
+public class AzureSearchConfig {
+
+    @ConfigProperty(name = "azure.search.endpoint")
+    String endpoint;
+
+    @ConfigProperty(name = "azure.search.index-name")
+    String indexName;
+
+    @ConfigProperty(name = "azure.search.api-key")
+    String apiKey;
+
+    @Produces
+    @ApplicationScoped
+    public SearchClient searchClient() {
+
+        return new SearchClientBuilder()
+                .endpoint(endpoint)
+                .indexName(indexName)
+                .credential(new AzureKeyCredential(apiKey))
+                .buildClient();
     }
-  ]
 }
 ```
 
-# 8. Technologies
+Esto permite inyectar `SearchClient` en los servicios Quarkus.
 
-| Technology | Version |
-|------------|---------|
-| Java | 17 |
-| Quarkus | 3.x |
-| Hibernate ORM | Latest |
-| JPA | Jakarta |
-| MapStruct | 1.6.x |
-| Lombok | Latest |
-| Maven | 3.9+ |
+## 10. AzureSearchService
 
-# 9. Running
+El servicio consulta Azure AI Search. Implementación base:
 
-## Requirements
+```java
+@ApplicationScoped
+public class AzureSearchService {
 
-- Java 17
-- Maven
-- PostgreSQL
+    private final SearchClient searchClient;
 
-Clone
+    public AzureSearchService(SearchClient searchClient) {
+        this.searchClient = searchClient;
+    }
 
-```bash
-git clone https://github.com/lgomezs/quarkus-architecture-hexagonal.git
+    public List<String> search(String question) {
+
+        VectorizableTextQuery vectorQuery =
+                new VectorizableTextQuery(question)
+                        .setKNearestNeighbors(5)
+                        .setFields("text_vector");
+
+        SearchOptions searchOptions =
+                new SearchOptions()
+                        .setSearchText(question)
+                        .setTop(5)
+                        .setSelect(
+                                "chunk_id",
+                                "parent_id",
+                                "chunk",
+                                "title"
+                        )
+                        .setVectorQueries(
+                                List.of(vectorQuery)
+                        );
+
+        SearchPagedIterable results =
+                searchClient.search(searchOptions);
+
+        List<String> chunks = new ArrayList<>();
+
+        for (SearchResult result : results) {
+            final Map<String, Object> document =
+                    result.getAdditionalProperties();
+            final Object chunk = document.get("chunk");
+            if (chunk != null && !chunk.toString().isBlank()) {
+                chunks.add(chunk.toString());
+            }
+        }
+
+        return chunks;
+    }
+}
 ```
 
-Build
+El flujo es: pregunta -> VectorizableTextQuery -> SearchOptions -> SearchClient -> SearchResult -> `getAdditionalProperties()` -> campo `chunk`.
 
-```bash
-mvn clean install
+## 11. Azure OpenAI existente
+
+La aplicación ya tenía una integración funcionando con Azure OpenAI. El adaptador es `AzureOpenAiAdapter implements OpenAIProvider` y utiliza `OpenAIClient`. El deployment es `gpt-5-mini-1`.
+
+La interfaz es:
+
+```java
+public interface OpenAIProvider {
+    String question(String question, String context);
+}
 ```
 
-Run
+Esto permite separar la lógica de aplicación del proveedor concreto.
 
-```bash
-mvn quarkus:dev
+## 12. Adaptación de AzureOpenAiAdapter para RAG
+
+El método ya recibía `question` y `context`, pero inicialmente solo utilizaba `question`. Se modificó para incluir ambos en el prompt:
+
+```java
+String prompt = """
+    Eres el asistente técnico de la empresa.
+
+    Responde utilizando únicamente el CONTEXTO.
+    No inventes información.
+    Si el contexto no contiene la respuesta, indícalo.
+    Responde de forma concisa y en Markdown.
+
+    CONTEXTO:
+    %s
+
+    PREGUNTA:
+    %s
+    """.formatted(context, question);
 ```
 
-Swagger
+Luego se utiliza:
 
-```
-http://localhost:8080/q/swagger-ui
-```
-
-Health
-
-```
-http://localhost:8080/q/health
+```java
+.addUserMessage(prompt)
 ```
 
-# 10. Configuration
+La modificación fundamental fue pasar de enviar únicamente la pregunta a enviar pregunta + contexto recuperado.
 
-Example:
+## 13. RagService
 
-```properties
-quarkus.datasource.db-kind=postgresql
-quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/orders
-quarkus.datasource.username=postgres
-quarkus.datasource.password=postgres
+Se creó una capa para coordinar Retrieval y Generation:
+
+```java
+@ApplicationScoped
+public class RagService {
+
+    private final AzureSearchService searchService;
+    private final OpenAIProvider openAIProvider;
+
+    public RagService(
+            AzureSearchService searchService,
+            OpenAIProvider openAIProvider) {
+        this.searchService = searchService;
+        this.openAIProvider = openAIProvider;
+    }
+
+    public String question(String question) {
+        final List<String> chunks = this.searchService.search(question);
+        final String context = String.join("\n\n---\n\n", chunks);
+        return this.openAIProvider.question(question, context);
+    }
+}
 ```
 
-# 11. Testing
+Este servicio representa el corazón del RAG.
 
-```bash
-mvn test
+## 14. Controller y respuesta JSON
+
+Se modificó el endpoint para devolver JSON.
+
+```java
+public record AiResponse(String answer) {}
 ```
 
-# 12. Roadmap
+Request recomendado:
 
-- Kafka
-- Redis
-- OpenTelemetry
-- Prometheus
-- Grafana
-- Docker
-- Kubernetes
-- GitHub Actions
-- Testcontainers
-- CQRS
-- Event Sourcing
+```java
+public record AiQuestionRequest(String question) {}
+```
 
-# 13. Antora Documentation
+Controller:
 
-This repository now contains an initial structure for publishing documentation with Antora.
+```java
+@POST
+@Path("/question")
+public AiResponse question(AiQuestionRequest request) {
+    final String answer = ragService.question(request.question());
+    return new AiResponse(answer);
+}
+```
 
-How to generate the site (locally):
+Request:
 
-1. Install Antora (npm install -g @antora/cli @antora/site-generator-default)
-2. Run: antora antora-playbook.yml
+```json
+{"question":"¿Cómo debo construir una arquitectura hexagonal?"}
+```
 
-Recommended structure:
+Response:
+
+```json
+{"answer":"Resumen técnico..."}
+```
+
+## 15. Problema de formato de respuesta
+
+Inicialmente la respuesta parecía mostrar palabras pegadas. Se comprobó la salida directamente en la consola de Quarkus y Azure OpenAI estaba devolviendo correctamente los espacios y saltos de línea. Por tanto, el problema estaba en la representación visual de la respuesta. Para el portal final se recomienda renderizar Markdown correctamente.
+
+## 16. Qué es RAG
+
+RAG significa Retrieval-Augmented Generation, o Generación aumentada mediante recuperación.
+
+Tiene dos etapas:
+
+### Retrieval
 
 ```text
-docs/
-└── modules/
-    └── ROOT/
-        ├── pages/
-        │   ├── architecture.adoc
-        │   ├── domain.adoc
-        │   ├── persistence.adoc
-        │   ├── api.adoc
-        │   └── deployment.adoc
-        ├── images/
-        └── nav.adoc
+Pregunta
+   |
+   v
+Azure AI Search
+   |
+   v
+chunks relevantes
 ```
 
-Suggested future pages:
+### Generation
 
-- Architecture Decision Records
-- Sequence Diagrams
-- Component Diagrams
-- ER Diagram
-- Deployment Guide
-- Observability
-- Security
-- Performance
-- Coding Standards
+```text
+Pregunta + chunks
+       |
+       v
+Azure OpenAI
+       |
+       v
+respuesta
+```
 
-## License
+Combinadas:
 
-MIT
+```text
+Pregunta
+   |
+   v
+Azure AI Search
+   |
+   v
+Contexto
+   |
+   v
+Azure OpenAI
+   |
+   v
+Respuesta
+```
+
+## 17. La IA no aprende automáticamente del documento
+
+Una conclusión fundamental es que la IA no se entrena con el archivo `.adoc`.
+
+No ocurre:
+
+```text
+documento -> entrenamiento del modelo
+```
+
+Ocurre:
+
+```text
+documento -> Azure AI Search -> índice
+```
+
+Y ante una pregunta:
+
+```text
+pregunta -> Azure AI Search -> chunks -> Azure OpenAI
+```
+
+Si la documentación cambia, se actualiza el proceso de indexación. No es necesario volver a entrenar GPT.
+
+## 18. Rendimiento medido
+
+Se agregaron mediciones de Azure AI Search, Azure OpenAI, RAG completo, cantidad de chunks y tamaño del contexto.
+
+Una medición inicial fue:
+
+```text
+Azure AI Search: 471 ms
+Azure OpenAI: 12410 ms
+RAG TOTAL: 12882 ms
+```
+
+Después de optimizar el prompt:
+
+```text
+Azure AI Search: 609 ms
+Chunks encontrados: 5
+Context chars: 9790
+OpenAI choices: 1
+Azure OpenAI: 5801 ms
+RAG TOTAL: 6411 ms
+```
+
+La optimización del prompt redujo notablemente la latencia de Azure OpenAI sin cambiar el modelo.
+
+## 19. Optimización y próximos experimentos
+
+Se está evaluando el número óptimo de chunks: 5, 3 y 2. La decisión debe considerar calidad de respuesta, precisión de recuperación, latencia y tamaño del contexto. No conviene reducir contexto si se pierde información relevante.
+
+También conviene medir tokens de entrada y salida y evaluar posteriormente límites de generación, caching, configuración del deployment y rendimiento de Search.
+
+## 20. Arquitectura hexagonal aplicada al RAG
+
+La solución también aplica principios de arquitectura hexagonal:
+
+```text
+                 APPLICATION
+                     |
+                RagService
+                     |
+          +----------+----------+
+          |                     |
+          v                     v
+  OpenAIProvider        AzureSearchService
+     (Port)                  |
+          |                   |
+          v                   v
+AzureOpenAiAdapter      Azure AI Search
+```
+
+`OpenAIProvider` es una abstracción/puerto y `AzureOpenAiAdapter` es el adaptador concreto. Esto permite cambiar el proveedor externo sin cambiar la lógica principal.
+
+## 21. Qué se ha conseguido
+
+```text
+[OK] Azure OpenAI
+[OK] Deployment gpt-5-mini-1
+[OK] Quarkus conectado a Azure OpenAI
+[OK] Azure Blob Storage
+[OK] arquitectura-hexagonal.adoc
+[OK] Azure AI Search
+[OK] Indexación
+[OK] Chunks
+[OK] Vectorización
+[OK] text_vector
+[OK] Búsqueda vectorial
+[OK] Búsqueda híbrida
+[OK] Quarkus -> Azure AI Search
+[OK] Recuperación de chunks
+[OK] Construcción de contexto
+[OK] Contexto -> Azure OpenAI
+[OK] Respuesta basada en documentación
+[OK] Endpoint JSON
+[OK] Medición de rendimiento
+[OK] Optimización inicial del prompt
+```
+
+Resultado: **RAG funcional de extremo a extremo**.
+
+## 22. Qué falta para el portal corporativo
+
+### Frontend
+Construir el portal para preguntas técnicas.
+
+### Markdown
+Renderizar títulos, listas, código Java, tablas y bloques de código.
+
+### Fuentes
+Se recomienda devolver documento, título y chunk ID para que el desarrollador pueda verificar la fuente.
+
+### Seguridad
+En producción, evolucionar de API Keys hacia Managed Identity + Azure RBAC.
+
+### Observabilidad
+Medir latencia de Search, latencia de OpenAI, latencia total, número de chunks, tamaño del contexto, tokens de entrada/salida, errores y preguntas sin información suficiente.
+
+### Actualización automática
+Configurar la indexación para incorporar automáticamente cambios de documentación.
+
+## 23. Arquitectura objetivo
+
+```text
+                    +-----------------------+
+                    | Developer Portal      |
+                    | Pregunta técnica      |
+                    +-----------+-----------+
+                                |
+                                v
+                    +-----------------------+
+                    | Quarkus API           |
+                    | RagService             |
+                    +-----------+-----------+
+                                |
+                   +------------+------------+
+                   |                         |
+                   v                         v
+          +----------------+        +----------------+
+          | Azure AI       |        | Azure OpenAI   |
+          | Search         |        | GPT-5-mini-1  |
+          +-------+--------+        +--------+-------+
+                  |                          |
+                  | chunks                   |
+                  +------------+-------------+
+                               |
+                               v
+                        respuesta técnica
+
+        +------------------------------+
+        | Azure Blob Storage           |
+        | documentación .adoc/.md      |
+        +--------------+---------------+
+                       |
+                       v
+                 Azure AI Search
+                    Indexación
+```
 
 
+## 24. Explicación sencilla para presentar el proyecto
+
+> No estamos entrenando una IA con la documentación de la empresa. Estamos construyendo un RAG. La documentación técnica vive en nuestro almacenamiento. Azure AI Search la indexa y permite encontrar los fragmentos relevantes. Cuando un desarrollador hace una pregunta, Quarkus consulta Azure AI Search, recupera los fragmentos relacionados y los envía junto con la pregunta a Azure OpenAI. GPT-5-mini genera la respuesta utilizando ese contexto.
+
+En una frase:
+
+```text
+Azure Blob Storage almacena.
+Azure AI Search encuentra.
+Quarkus coordina.
+Azure OpenAI responde.
+RAG conecta todo.
+```
+
+## 25. Estado final
+
+**Estado actual: RAG funcional de extremo a extremo.**
+
+```text
+DOCUMENTACIÓN
+      |
+      v
+Blob Storage
+      |
+      v
+Azure AI Search
+      |
+      | recuperación
+      v
+Quarkus
+      |
+      | contexto
+      v
+Azure OpenAI
+      |
+      v
+GPT-5-mini-1
+      |
+      v
+RESPUESTA
+```
+
+La solución ya permite realizar preguntas técnicas sobre `arquitectura-hexagonal.adoc` y obtener respuestas generadas por GPT-5-mini utilizando como contexto los fragmentos recuperados desde Azure AI Search.
+
+El siguiente nivel es convertir esta base técnica en un portal corporativo completo con frontend, Markdown, fuentes, seguridad, observabilidad, actualización automática de documentación y optimización avanzada de recuperación.
