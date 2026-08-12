@@ -177,8 +177,8 @@ public class AzureSearchConfig {
 
         return new SearchClientBuilder()
                 .endpoint(endpoint)
-                .indexName(indexName)
-                .credential(new AzureKeyCredential(apiKey))
+                .indexName(this.indexName)
+                .credential(new AzureKeyCredential(this.apiKey))
                 .buildClient();
     }
 }
@@ -202,12 +202,12 @@ public class AzureSearchService {
 
     public List<String> search(String question) {
 
-        VectorizableTextQuery vectorQuery =
+        final VectorizableTextQuery vectorQuery =
                 new VectorizableTextQuery(question)
                         .setKNearestNeighbors(5)
                         .setFields("text_vector");
 
-        SearchOptions searchOptions =
+        final SearchOptions searchOptions =
                 new SearchOptions()
                         .setSearchText(question)
                         .setTop(5)
@@ -221,12 +221,12 @@ public class AzureSearchService {
                                 List.of(vectorQuery)
                         );
 
-        SearchPagedIterable results =
-                searchClient.search(searchOptions);
+        final SearchPagedIterable results =
+                this.searchClient.search(searchOptions);
 
-        List<String> chunks = new ArrayList<>();
+        final List<String> chunks = new ArrayList<>();
 
-        for (SearchResult result : results) {
+        for (final SearchResult result : results) {
             final Map<String, Object> document =
                     result.getAdditionalProperties();
             final Object chunk = document.get("chunk");
@@ -505,10 +505,11 @@ AzureOpenAiAdapter      Azure AI Search
 
 Resultado: **RAG funcional de extremo a extremo**.
 
-## 22. Qué falta para el portal corporativo
-
 ### Frontend
-Construir el portal para preguntas técnicas.
+
+ Repo: https://github.com/lgomezs/spa-searchIA
+
+## 22. Qué falta para el portal corporativo
 
 ### Markdown
 Renderizar títulos, listas, código Java, tablas y bloques de código.
@@ -563,20 +564,6 @@ Configurar la indexación para incorporar automáticamente cambios de documentac
                     Indexación
 ```
 
-
-## 24. Explicación sencilla para presentar el proyecto
-
-> No estamos entrenando una IA con la documentación de la empresa. Estamos construyendo un RAG. La documentación técnica vive en nuestro almacenamiento. Azure AI Search la indexa y permite encontrar los fragmentos relevantes. Cuando un desarrollador hace una pregunta, Quarkus consulta Azure AI Search, recupera los fragmentos relacionados y los envía junto con la pregunta a Azure OpenAI. GPT-5-mini genera la respuesta utilizando ese contexto.
-
-En una frase:
-
-```text
-Azure Blob Storage almacena.
-Azure AI Search encuentra.
-Quarkus coordina.
-Azure OpenAI responde.
-RAG conecta todo.
-```
 
 ## 25. Estado final
 
