@@ -176,7 +176,7 @@ public class AzureSearchConfig {
     public SearchClient searchClient() {
 
         return new SearchClientBuilder()
-                .endpoint(endpoint)
+                .endpoint(this.endpoint)
                 .indexName(this.indexName)
                 .credential(new AzureKeyCredential(this.apiKey))
                 .buildClient();
@@ -513,9 +513,6 @@ Resultado: **RAG funcional de extremo a extremo**.
 
 ### Markdown
 Renderizar títulos, listas, código Java, tablas y bloques de código.
-
-### Fuentes
-Se recomienda devolver documento, título y chunk ID para que el desarrollador pueda verificar la fuente.
 
 ### Seguridad
 En producción, evolucionar de API Keys hacia Managed Identity + Azure RBAC.

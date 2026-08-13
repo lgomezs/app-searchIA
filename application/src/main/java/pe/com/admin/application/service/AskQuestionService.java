@@ -3,6 +3,7 @@ package pe.com.admin.application.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import pe.com.admin.application.usecase.AskQuestionUseCase;
 import pe.com.admin.domain.model.Question;
+import pe.com.admin.domain.model.RagResult;
 import pe.com.admin.domain.port.output.SearchRGAPort;
 
 @ApplicationScoped
@@ -15,7 +16,7 @@ public class AskQuestionService implements AskQuestionUseCase {
 	}
 
 	@Override
-	public String ask(final Question question) {
+	public RagResult ask(final Question question) {
 		return this.searchRGAPort.generate(question.text());
 	}
 }

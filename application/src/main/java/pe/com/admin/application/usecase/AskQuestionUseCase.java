@@ -1,8 +1,9 @@
 package pe.com.admin.application.usecase;
 
 import pe.com.admin.domain.model.Question;
+import pe.com.admin.domain.model.RagResult;
 
 public interface AskQuestionUseCase {
 
-	String ask(final Question question);
+	RagResult ask(final Question question);
 }

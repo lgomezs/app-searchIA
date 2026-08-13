@@ -6,11 +6,14 @@ import com.azure.search.documents.models.SearchPagedIterable;
 import com.azure.search.documents.models.SearchResult;
 import com.azure.search.documents.models.VectorizableTextQuery;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.jetbrains.annotations.NotNull;
+import pe.com.admin.domain.model.SearchChunk;
 import pe.com.admin.domain.port.output.SearchAdapterPort;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @ApplicationScoped
 public class AzureSearchAIAdapter implements SearchAdapterPort {
@@ -22,9 +25,7 @@ public class AzureSearchAIAdapter implements SearchAdapterPort {
 	}
 
 	@Override
-	public List<String> generate(String question) {
-		final long start = System.currentTimeMillis();
-
+	public List<SearchChunk> generate(String question) {
 		final VectorizableTextQuery vectorQuery = new VectorizableTextQuery(question).setKNearestNeighbors(5)
 				.setFields("text_vector");
 
@@ -33,25 +34,32 @@ public class AzureSearchAIAdapter implements SearchAdapterPort {
 
 		final SearchPagedIterable results = this.searchClient.search(searchOptions);
 
-		final List<String> chunks = new ArrayList<>();
+		return getSearchChunks(results);
+
+	}
+
+	private static @NotNull List<SearchChunk> getSearchChunks(SearchPagedIterable results) {
+		final List<SearchChunk> chunks = new ArrayList<>();
 
 		for (final SearchResult result : results) {
 
 			final Map<String, Object> document = result.getAdditionalProperties();
 
-			final Object chunk = document.get("chunk");
+			final String chunkId = Objects.toString(document.get("chunk_id"), "");
 
-			if (chunk != null && !chunk.toString().isBlank()) {
-				chunks.add(chunk.toString());
+			final String parentId = Objects.toString(document.get("parent_id"), "");
+
+			final String chunk = Objects.toString(document.get("chunk"), "");
+
+			final String title = Objects.toString(document.get("title"), "");
+
+			if (chunk != null && !chunk.isBlank()) {
+				chunks.add(new SearchChunk(chunkId, parentId, chunk, title));
 			}
+
 		}
 
-		final long end = System.currentTimeMillis();
-
-		System.out.println("Azure AI Search: " + (end - start) + " ms");
-
 		return chunks;
-
 	}
 
 }
