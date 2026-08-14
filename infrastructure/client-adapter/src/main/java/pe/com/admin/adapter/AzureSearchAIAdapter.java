@@ -1,10 +1,7 @@
 package pe.com.admin.adapter;
 
 import com.azure.search.documents.SearchClient;
-import com.azure.search.documents.models.SearchOptions;
-import com.azure.search.documents.models.SearchPagedIterable;
-import com.azure.search.documents.models.SearchResult;
-import com.azure.search.documents.models.VectorizableTextQuery;
+import com.azure.search.documents.models.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jetbrains.annotations.NotNull;
 import pe.com.admin.domain.model.SearchChunk;
@@ -26,10 +23,11 @@ public class AzureSearchAIAdapter implements SearchAdapterPort {
 
 	@Override
 	public List<SearchChunk> generate(String question) {
-		final VectorizableTextQuery vectorQuery = new VectorizableTextQuery(question).setKNearestNeighbors(5)
+		final VectorizableTextQuery vectorQuery = new VectorizableTextQuery(question).setKNearestNeighbors(50)
 				.setFields("text_vector");
 
-		final SearchOptions searchOptions = new SearchOptions().setSearchText(question).setTop(5)
+		final SearchOptions searchOptions = new SearchOptions().setSearchText(question).setQueryType(QueryType.SEMANTIC)
+				.setSemanticConfigurationName("rag-semantic-config").setTop(5)
 				.setSelect("chunk_id", "parent_id", "chunk", "title").setVectorQueries(List.of(vectorQuery));
 
 		final SearchPagedIterable results = this.searchClient.search(searchOptions);
@@ -53,7 +51,11 @@ public class AzureSearchAIAdapter implements SearchAdapterPort {
 
 			final String title = Objects.toString(document.get("title"), "");
 
-			if (chunk != null && !chunk.isBlank()) {
+			System.out.println("SEARCH SCORE: " + result.getScore());
+
+			System.out.println("RERANKER SCORE: " + result.getRerankerScore());
+
+			if (!chunk.isBlank()) {
 				chunks.add(new SearchChunk(chunkId, parentId, chunk, title));
 			}
 

@@ -35,9 +35,6 @@ public class AzureRAGAdapter implements SearchRGAPort {
 		final String context = chunks.stream().map(SearchChunk::chunk).collect(Collectors.joining("\n\n---\n\n"));
 
 		System.out.println("Chunks encontrados: " + chunks.size());
-		System.out.println("========== RAG CONTEXT ==========");
-		System.out.println(context);
-		System.out.println("=================================");
 
 		final List<RagSource> sources = chunks.stream()
 				.map(chunk -> new RagSource(chunk.title(), chunk.chunkId(), chunk.parentId())).toList();
