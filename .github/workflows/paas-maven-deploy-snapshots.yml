@@ -26,7 +26,7 @@ permissions:
 
 env:
   JAVA_VERSION: '21'
-  IMAGE_NAME: lgomezs/app-searchIA
+  IMAGE_NAME: lgomezs/app-searchia
   REGISTRY: ${{ secrets.REGISTRY_URL }}
 
 jobs:
