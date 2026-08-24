@@ -94,6 +94,7 @@ jobs:
         working-directory: boot
         run: |
           docker build \
+            --platform linux/arm64 \
             -f src/main/docker/Dockerfile.jvm \
             -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
 
