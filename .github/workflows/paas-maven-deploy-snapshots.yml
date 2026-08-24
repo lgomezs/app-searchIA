@@ -23,11 +23,17 @@ permissions:
   packages: write
   pull-requests: write
   issues: write
+  id-token: write
 
 env:
   JAVA_VERSION: '21'
   IMAGE_NAME: lgomezs/app-searchia
   REGISTRY: ${{ secrets.REGISTRY_URL }}
+  AKS_RESOURCE_GROUP: ${{ vars.AKS_RESOURCE_GROUP }}
+  AKS_CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
+  AKS_NAMESPACE: ${{ vars.AKS_NAMESPACE }}
+  AKS_DEPLOYMENT_NAME: ${{ vars.AKS_DEPLOYMENT_NAME }}
+  AKS_CONTAINER_NAME: ${{ vars.AKS_CONTAINER_NAME }}
 
 jobs:
   deploy-snapshot:
@@ -111,12 +117,60 @@ jobs:
           docker push \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Azure Login
+        run: |
+          az account show
+
+          az aks show \
+            --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
+            --name ${{ env.AKS_CLUSTER_NAME }} \
+            --query "{name:name,state:provisioningState}" \
+            -o table
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+
+      - name: Deploy image to AKS
+        run: |
+          sed -e "s|__AKS_NAMESPACE__|${{ env.AKS_NAMESPACE }}|g" \
+            k8s/namespace.yaml > /tmp/namespace.yaml
+
+          sed -e "s|__AKS_NAMESPACE__|${{ env.AKS_NAMESPACE }}|g" \
+              -e "s|__AKS_DEPLOYMENT_NAME__|${{ env.AKS_DEPLOYMENT_NAME }}|g" \
+              -e "s|__AKS_CONTAINER_NAME__|${{ env.AKS_CONTAINER_NAME }}|g" \
+              -e "s|__IMAGE__|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|g" \
+            k8s/deployment.yaml > /tmp/deployment.yaml
+
+          sed -e "s|__AKS_NAMESPACE__|${{ env.AKS_NAMESPACE }}|g" \
+              -e "s|__AKS_DEPLOYMENT_NAME__|${{ env.AKS_DEPLOYMENT_NAME }}|g" \
+            k8s/service.yaml > /tmp/service.yaml
+
+          kubectl apply -f /tmp/namespace.yaml
+          kubectl apply -f /tmp/deployment.yaml
+          kubectl apply -f /tmp/service.yaml
+
+          kubectl rollout status deployment/${{ env.AKS_DEPLOYMENT_NAME }} \
+            --namespace ${{ env.AKS_NAMESPACE }}
+
       - name: Deployment summary
         run: |
           echo "Deploy snapshot completado"
           echo "SUPRAENVS=${{ inputs.SUPRAENVS }}"
           echo "ENVS=${{ inputs.ENVS }}"
           echo "IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "AKS_CLUSTER=${{ env.AKS_CLUSTER_NAME }}"
+          echo "AKS_NAMESPACE=${{ env.AKS_NAMESPACE }}"
+          echo "AKS_DEPLOYMENT=${{ env.AKS_DEPLOYMENT_NAME }}"
 
       - name: Comment PR Success
         if: success()
@@ -137,6 +191,11 @@ jobs:
 
               Docker Image:
               \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}\`
+
+              AKS Deployment:
+              - Cluster: ${{ env.AKS_CLUSTER_NAME }}
+              - Namespace: ${{ env.AKS_NAMESPACE }}
+              - Deployment: ${{ env.AKS_DEPLOYMENT_NAME }}
               `
             })
 

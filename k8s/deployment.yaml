@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: __AKS_DEPLOYMENT_NAME__
+  namespace: __AKS_NAMESPACE__
+  labels:
+    app: __AKS_DEPLOYMENT_NAME__
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: __AKS_DEPLOYMENT_NAME__
+  template:
+    metadata:
+      labels:
+        app: __AKS_DEPLOYMENT_NAME__
+    spec:
+      containers:
+        - name: __AKS_CONTAINER_NAME__
+          image: __IMAGE__
+          ports:
+            - containerPort: 8080

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: __AKS_DEPLOYMENT_NAME__
+  namespace: __AKS_NAMESPACE__
+spec:
+  selector:
+    app: __AKS_DEPLOYMENT_NAME__
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: ClusterIP
