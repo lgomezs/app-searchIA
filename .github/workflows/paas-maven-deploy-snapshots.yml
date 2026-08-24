@@ -153,6 +153,12 @@ jobs:
 
           sed -e "s|__AKS_NAMESPACE__|${{ env.AKS_NAMESPACE }}|g" \
               -e "s|__AKS_DEPLOYMENT_NAME__|${{ env.AKS_DEPLOYMENT_NAME }}|g" \
+              -e "s|__AZURE_SEARCH_API_KEY__|${{ secrets.AZURE_SEARCH_API_KEY }}|g" \
+              -e "s|__AZURE_OPENAI_API_KEY__|${{ secrets.AZURE_OPENAI_API_KEY }}|g" \
+            k8s/secret.yaml > /tmp/secret.yaml
+
+          sed -e "s|__AKS_NAMESPACE__|${{ env.AKS_NAMESPACE }}|g" \
+              -e "s|__AKS_DEPLOYMENT_NAME__|${{ env.AKS_DEPLOYMENT_NAME }}|g" \
               -e "s|__AKS_CONTAINER_NAME__|${{ env.AKS_CONTAINER_NAME }}|g" \
               -e "s|__IMAGE__|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|g" \
             k8s/deployment.yaml > /tmp/deployment.yaml
@@ -162,6 +168,7 @@ jobs:
             k8s/service.yaml > /tmp/service.yaml
 
           kubectl apply -f /tmp/namespace.yaml
+          kubectl apply -f /tmp/secret.yaml
           kubectl apply -f /tmp/deployment.yaml
           kubectl apply -f /tmp/service.yaml
 

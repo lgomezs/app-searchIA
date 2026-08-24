@@ -18,5 +18,16 @@ spec:
       containers:
         - name: __AKS_CONTAINER_NAME__
           image: __IMAGE__
+          env:
+            - name: AZURE_SEARCH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: __AKS_DEPLOYMENT_NAME__-secrets
+                  key: azure.search.api-key
+            - name: AZURE_OPENAI_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: __AKS_DEPLOYMENT_NAME__-secrets
+                  key: azure.openai.api-key
           ports:
             - containerPort: 8080
