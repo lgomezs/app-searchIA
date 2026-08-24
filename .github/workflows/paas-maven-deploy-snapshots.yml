@@ -167,10 +167,14 @@ jobs:
               -e "s|__AKS_DEPLOYMENT_NAME__|${{ env.AKS_DEPLOYMENT_NAME }}|g" \
             k8s/service.yaml > /tmp/service.yaml
 
+          sed -e "s|__AKS_DEPLOYMENT_NAME__|${{ env.AKS_DEPLOYMENT_NAME }}|g" \
+            k8s/app-searchia-ingress.yaml > /tmp/app-searchia-ingress.yaml
+
           kubectl apply -f /tmp/namespace.yaml
           kubectl apply -f /tmp/secret.yaml
           kubectl apply -f /tmp/deployment.yaml
           kubectl apply -f /tmp/service.yaml
+          kubectl apply -f /tmp/app-searchia-ingress.yaml
 
           kubectl rollout status deployment/${{ env.AKS_DEPLOYMENT_NAME }} \
             --namespace ${{ env.AKS_NAMESPACE }}

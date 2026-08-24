@@ -1461,6 +1461,37 @@ un entorno productivo.
 
 ------------------------------------------------------------------------
 
+## Deploy to Azure AKS
+
+Para ejecutar el workflow `paas-maven-deploy-snapshots.yml`, configura estas
+variables y secretos en GitHub Actions.
+
+### Variables (Actions > Variables)
+
+| Nombre | Uso |
+| --- | --- |
+| `AKS_RESOURCE_GROUP` | Resource Group del clúster AKS |
+| `AKS_CLUSTER_NAME` | Nombre del clúster AKS |
+| `AKS_NAMESPACE` | Namespace del despliegue |
+| `AKS_DEPLOYMENT_NAME` | Nombre del Deployment |
+| `AKS_CONTAINER_NAME` | Nombre del contenedor en el Deployment |
+
+### Secretos (Actions > Secrets)
+
+| Nombre | Uso |
+| --- | --- |
+| `REGISTRY_URL` | URL del registry Docker |
+| `DP_USERNAME` | Usuario para `docker login` |
+| `DP_PASSWORD` | Password/token para `docker login` |
+| `AZURE_CLIENT_ID` | Login de `azure/login` |
+| `AZURE_TENANT_ID` | Login de `azure/login` |
+| `AZURE_SUBSCRIPTION_ID` | Login de `azure/login` |
+| `AZURE_SEARCH_API_KEY` | Se inyecta en `k8s/secret.yaml` como `azure.search.api-key` |
+| `AZURE_OPENAI_API_KEY` | Se inyecta en `k8s/secret.yaml` como `azure.openai.api-key` |
+
+
+------------------------------------------------------------------------
+
 ## Fin del README
 
 **Proyecto:** Developer AI Assistant\

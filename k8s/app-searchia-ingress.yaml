@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: __AKS_DEPLOYMENT_NAME__
+  namespace: applications
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /assistant
+            pathType: Prefix
+            backend:
+              service:
+                name: __AKS_DEPLOYMENT_NAME__
+                port:
+                  number: 80
