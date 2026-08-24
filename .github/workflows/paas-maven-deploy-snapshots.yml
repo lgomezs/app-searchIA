@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       SUPRAENVS:
-        description: "Supraentornos destino (des/pre)"
+        description: "entornos destino (des/pre)"
         required: true
         type: string
 
