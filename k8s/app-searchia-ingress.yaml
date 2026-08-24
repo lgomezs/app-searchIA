@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: __AKS_DEPLOYMENT_NAME__
   namespace: applications
+  annotations:
+    konghq.com/plugins: app-searchia-key-auth
 spec:
   ingressClassName: kong
   rules:
