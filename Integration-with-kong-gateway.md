@@ -538,27 +538,154 @@ De esta forma, la configuración de routing de Kong queda versionada junto con e
 ---
 ## Fase 2 — API Key Authentication
 
-Probar:
+kubectl apply -f app-searchia-api-key-secret.yaml
+kubectl apply -f app-searchia-consumer.yaml
+kubectl apply -f app-searchia-key-auth.yaml
+
+### API Key Authentication
+
+Componente	    Nombre
+KongPlugin	    app-searchia-key-auth
+KongConsumer	app-searchia-client
+Secret	        app-searchia-api-key
+API Key	        app-searchia-test-123
+Header	        X-API-Key
+
+kong-gateway-proxy = puerta de entrada
+Ingress = reglas de entrada/routing
+KongPlugin = seguridad aplicada a esas reglas
+KongConsumer = quién está consumiendo
+Secret = credencial
+
+### Creamos un KongPlugin
+
+Este recurso le dice a Kong: "Quiero utilizar el plugin key-auth y quiero que la API Key venga en el header X-API-Key."
+
+Define cómo autenticar.
+
+### Creamos un Consumer
+
+El Consumer representa quién está consumiendo nuestra API. Puedes imaginarlo como un cliente registrado en Kong.
+
+Define quién consume.
+
+Por ejemplo, podríamos tener:
 
 ```text
-POST /assistant/search
+app-searchia-client
+mobile-app
+web-app
+partner-company
+external-system
 ```
 
-Sin API Key:
+Cada Consumer podría tener diferentes credenciales.
+
+    kubectl get kongconsumer -n applications
+    kubectl get kongconsumer app-searchia-client -n applications
+
+### Credential
+
+Define con qué credencial se autentica.
+
+El Consumer tiene:
 
 ```text
-401 Unauthorized
+credentials:
+- app-searchia-api-key
 ```
 
-Con API Key válida:
+Esto significa: El Consumer app-searchia-client utiliza la credencial app-searchia-api-key.
 
-```text
-200 OK
+    kubectl get kongplugin -A
+
+### Secret de Kubernetes
+
+La API Key se almacena en un Secret. Es donde Kubernetes almacena esa credencial.
+
+¿Cómo sabe Kong qué API proteger?
+
+El plugin se asocia al Ingress mediante:
+
+```yaml
+annotations:
+  konghq.com/plugins: app-searchia-key-auth
 ```
 
----
 
 ## Fase 3 — JWT Authentication
+
+Keycloak será nuestro Identity Provider (IdP) y Kong será el API Gateway que valida el token. Keycloak expone, entre otros, el endpoint OIDC de descubrimiento y el endpoint de claves públicas/JWK que permiten validar los JWT.
+
+## FASE 1 — Instalar Keycloak en AKS
+
+Kong acceda internamente a Keycloak, sin necesidad de exponer Keycloak a Internet.
+
+```yaml
+    kubectl create namespace keycloak
+    kubectl apply -k 'github.com/keycloak/keycloak-k8s-resources/kubernetes?ref=26.7.2'
+    kubectl get pods -n keycloak
+    kubectl get deployment -n keycloak
+
+    kubectl apply -f k8s/keycloak/keycloak.yaml
+    kubectl get pods -n keycloak
+    kubectl get keycloak -n keycloak
+```
+### Crear un Ingress para Keycloak
+
+Para un laboratorio podemos utilizar un hostname sencillo: keycloak.172.168.4.116.nip.io
+
+```yaml
+    kubectl apply -f k8s/keycloak/keycloak-ingress.yaml
+```
+ Prueba desde tu pc: http://keycloak.172.168.4.116.nip.io
+
+ get user and password:
+
+temp-a      dmin
+
+```yaml
+    kubectl get secret -n keycloak keycloak-initial-admin \
+    -o jsonpath='{.data.username}' | base64 -d
+    echo
+    
+    kubectl get secret -n keycloak keycloak-initial-admin \
+    -o jsonpath='{.data.password}' | base64 -d
+    echo
+```
+Debemos de crear datos:
+
+    Realm
+    microservices
+    
+    Users
+    └── luis
+    
+    Clients
+    └── app-searchia
+
+curl -X POST \
+http://keycloak.172.168.4.116.nip.io/realms/microservices/protocol/openid-connect/token \
+-H "Content-Type: application/x-www-form-urlencoded" \
+-d "client_id=app-searchia" \
+-d "username=lgomezs" \
+-d "password=jueves1514" \
+-d "grant_type=password"
+
+
+### Crear la credencial JWT de Kong , KongConsumer y Crear el plugin JWT
+
+```yaml
+kubectl apply -f k8s/app-searchia-jwt-credential.yaml
+kubectl apply -f k8s/app-searchia-jwt-consumer.yaml
+kubectl apply -f k8s/app-searchia-jwt-plugin.yaml
+```
+
+Validamos:
+
+  ```yaml
+kubectl get secret app-searchia-jwt-credential -n applications
+```
 
 Flujo:
 

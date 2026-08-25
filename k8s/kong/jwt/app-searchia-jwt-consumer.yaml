@@ -1,0 +1,8 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: app-searchia-jwt-client
+  namespace: applications
+username: app-searchia-jwt-client
+credentials:
+  - app-searchia-jwt-credential

@@ -4,7 +4,8 @@ metadata:
   name: __AKS_DEPLOYMENT_NAME__
   namespace: applications
   annotations:
-    konghq.com/plugins: app-searchia-key-auth
+    #konghq.com/plugins: app-searchia-key-auth
+    konghq.com/plugins: app-searchia-jwt
 spec:
   ingressClassName: kong
   rules:
