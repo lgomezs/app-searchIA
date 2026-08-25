@@ -642,7 +642,7 @@ Para un laboratorio podemos utilizar un hostname sencillo: keycloak.172.168.4.11
 
  get user and password:
 
-temp-a      dmin
+    temp-admin
 
 ```yaml
     kubectl get secret -n keycloak keycloak-initial-admin \
