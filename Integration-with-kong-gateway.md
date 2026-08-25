@@ -684,7 +684,15 @@ kubectl apply -f k8s/app-searchia-jwt-plugin.yaml
 Validamos:
 
   ```yaml
-kubectl get secret app-searchia-jwt-credential -n applications
+kubectl get secret app-searchia-jwt-credential \
+-n applications \
+--show-labels
+
+kubectl get kongconsumer app-searchia-jwt-client \
+-n applications
+
+kubectl get kongplugin app-searchia-jwt \
+  -n applications
 ```
 
 Flujo:

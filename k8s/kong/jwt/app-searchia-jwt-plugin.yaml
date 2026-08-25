@@ -5,6 +5,6 @@ metadata:
   namespace: applications
 plugin: jwt
 config:
-  key_claim_name: iss
+  key_claim_name: azp
   claims_to_verify:
     - exp
