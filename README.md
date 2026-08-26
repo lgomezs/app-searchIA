@@ -1463,8 +1463,23 @@ un entorno productivo.
 
 ## Deploy to Azure AKS
 
+### Crear la Federated Credential (connect by OIDC)
+
 Para ejecutar el workflow `paas-maven-deploy-snapshots.yml`, configura estas
 variables y secretos en GitHub Actions.
+
+    az identity federated-credential create \
+    --name github-app-searchia-develop \
+    --identity-name github-actions-aks-dev \
+    --resource-group RG_IA \
+    --issuer https://token.actions.githubusercontent.com \
+    --subject "repo:lgomezs@34344140/app-searchIA@1331009508:ref:refs/heads/develop" \
+    --audiences api://AzureADTokenExchange
+    
+    az identity federated-credential list \
+    --identity-name github-actions-aks-dev \
+    --resource-group RG_IA \
+    -o table
 
 ### Variables (Actions > Variables)
 
