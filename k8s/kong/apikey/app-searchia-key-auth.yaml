@@ -1,0 +1,9 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: app-searchia-key-auth
+  namespace: applications
+plugin: key-auth
+config:
+  key_names:
+    - X-API-Key

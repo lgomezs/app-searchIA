@@ -1,0 +1,8 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: app-searchia-client
+  namespace: applications
+username: app-searchia-client
+credentials:
+  - app-searchia-api-key
